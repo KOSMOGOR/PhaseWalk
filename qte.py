@@ -43,16 +43,17 @@ def render_text(string, num):
 
 def get_new_button():
     global needrender, nowkey
-    key = choice(buttons)
+    key = choice(list(filter(lambda x: x[1] != nowkey, buttons)))
     needrender = [key[0], [randint(0, WIDTH - 100), randint(50, HEIGHT - 100)]]
-    nowkey = key[1]
+    lastkey, nowkey = nowkey, key[1]
 
 
 def reset():
-    global buttonsremain, needrender, nowkey, beforereturn
+    global buttonsremain, needrender, nowkey, lastkey, beforereturn
     buttonsremain = 0
     needrender = None
     nowkey = None
+    lastkey = None
     beforereturn = fps * 2
 
 
@@ -71,6 +72,7 @@ buttonsremain = 0
 ticks = fps * 4
 needrender = None
 nowkey = None
+lastkey = None
 text = 'waiting'
 clock = pygame.time.Clock()
 running = True
@@ -80,7 +82,6 @@ while running:
         beforereturn -= 1
     elif buttonsremain == 0:
         text = 'waiting'
-        ticks = fps * 4
     elif buttonsremain > 0:
         ticks -= 1
     if ticks == 0:
@@ -95,8 +96,10 @@ while running:
             running = False
         key = pygame.key.get_pressed()
         if key[pygame.K_SPACE]:
-            buttonsremain = randint(3, 5)
+            buttonsremain = 4
+            ticks = fps * 4
             text = 'now qte'
+            beforereturn = 0
             get_new_button()
         elif nowkey and key[nowkey]:
             buttonsremain -= 1
@@ -105,6 +108,9 @@ while running:
             else:
                 text = 'good'
                 reset()
+        elif lastkey and nowkey and any(key) and not key[nowkey] and not key[lastkey]:
+            text = 'bad'
+            reset()
 
 
     render_text(text, ticks)
