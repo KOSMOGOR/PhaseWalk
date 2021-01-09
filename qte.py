@@ -42,7 +42,7 @@ def render_text(string, num):
 
 
 def get_new_button():
-    global needrender, nowkey
+    global needrender, nowkey, lastkey
     key = choice(list(filter(lambda x: x[1] != nowkey, buttons)))
     needrender = [key[0], [randint(0, WIDTH - 100), randint(50, HEIGHT - 100)]]
     lastkey, nowkey = nowkey, key[1]
@@ -108,9 +108,11 @@ while running:
             else:
                 text = 'good'
                 reset()
-        elif lastkey and nowkey and any(key) and not key[nowkey] and not key[lastkey]:
-            text = 'bad'
-            reset()
+        elif nowkey and any(key):
+            print(1)
+            if not lastkey or (lastkey and not key[lastkey]):
+                text = 'bad'
+                reset()
 
 
     render_text(text, ticks)
