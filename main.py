@@ -1,6 +1,7 @@
 import pygame
 import sys
 import os
+PATH = os.path.join('simester_3', 'PhaseWalk', 'data')
 
 pygame.init()
 pygame.key.set_repeat(200, 70)
@@ -11,7 +12,7 @@ clock = pygame.time.Clock()
 
 
 def load_level(filename):
-    filename = "data/" + filename
+    filename = os.path.join(PATH, filename)
     # читаем уровень, убирая символы перевода строки
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
@@ -29,20 +30,8 @@ def terminate():
 
 
 def start_screen():
-    intro_text = [""]
-
     fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
     screen.blit(fon, (0, 0))
-    font = pygame.font.Font(None, 30)
-    text_coord = 50
-    for line in intro_text:
-        string_rendered = font.render(line, 1, pygame.Color('black'))
-        intro_rect = string_rendered.get_rect()
-        text_coord += 10
-        intro_rect.top = text_coord
-        intro_rect.x = 10
-        text_coord += intro_rect.height
-        screen.blit(string_rendered, intro_rect)
 
     while True:
         for event in pygame.event.get():
@@ -56,13 +45,12 @@ def start_screen():
 
 
 def load_image(name, color_key=None):
-    fullname = os.path.join('data', name)
+    fullname = os.path.join(PATH, name)
     try:
         image = pygame.image.load(fullname)
     except pygame.error as message:
         print('Cannot load image:', name)
         raise SystemExit(message)
-    #    image = image.convert_alpha()
 
     if color_key is not None:
         if color_key == -1:
@@ -111,12 +99,42 @@ class AnimatedSprite(pygame.sprite.Sprite):
 player_image = load_image("mar.png")
 
 
+class Board:
+    def __init__(self, width, height, player_pos, board):
+        self.width = width
+        self.height = height
+        self.board = board
+        self.left = 0
+        self.top = 0
+        self.cell_size = 50
+        self.player_pos = player_pos
+
+    def set_view(self, left, top, cell_size):
+        self.left = left
+        self.top = top
+        self.cell_size = cell_size
+
+    def render(self, screen):
+        tiles_group.draw(screen)
+        player_group.draw(screen)
+
+    def can_move(self, delta_x, delta_y):
+        y, x = self.player_pos[1] + delta_y, self.player_pos[0] + delta_x
+        if self.board[y][x].can_move:
+            return True
+        return False
+
+    def move(self, delta_x, delta_y):
+        self.player_pos = [self.player_pos[0] + delta_x, self.player_pos[1] + delta_y]
+
+
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, tile_type, pos_x, pos_y):
+    def __init__(self, tile_type, pos_x, pos_y, can_move=True):
         super().__init__(tiles_group, all_sprites)
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
+        self.can_move = can_move
 
 
 class Player(pygame.sprite.Sprite):
@@ -128,39 +146,48 @@ class Player(pygame.sprite.Sprite):
 
 
 def generate_level(level):
-    new_player, x, y = None, None, None
+    new_player, x, y, board = None, None, None, []
+    player_pos = [0, 0]
     for y in range(len(level)):
+        a = []
         for x in range(len(level[y])):
             if level[y][x] == '.':
-                Tile('empty', x, y)
+                a.append(Tile('empty', x, y))
             elif level[y][x] == '#':
-                Tile('wall', x, y)
+                a.append(Tile('wall', x, y, False))
             elif level[y][x] == '@':
-                Tile('empty', x, y)
+                a.append(Tile('empty', x, y))
                 new_player = Player(x, y)
+                player_pos = [x, y]
+        board.append(a)
     # вернем игрока, а также размер поля в клетках
-    return new_player, x, y
+    return new_player, x, y, Board(WIDTH, HEIGHT, player_pos, board)
 
 
 player = None
 
-player, level_x, level_y = generate_level(load_level('map.txt'))
+player, level_x, level_y, board = generate_level(load_level('map.txt'))
 start_screen()
 
 
 def player_moves(key, player):
-    if key[pygame.K_DOWN]:
+    global board
+    if key[pygame.K_DOWN] and board.can_move(0, 1):
         player.rect.top += 50
-    elif key[pygame.K_UP]:
+        board.move(0, 1)
+    elif key[pygame.K_UP] and board.can_move(0, -1):
         player.rect.top -= 50
-    elif key[pygame.K_RIGHT]:
+        board.move(0, -1)
+    elif key[pygame.K_RIGHT] and board.can_move(1, 0):
         if player.rect.left + 50 > WIDTH:
             player_group.empty()
-            player, level_x, level_y = generate_level(load_level('map1.txt'))
+            player, level_x, level_y, board = generate_level(load_level('map1.txt'))
         else:
             player.rect.left += 50
-    elif key[pygame.K_LEFT]:
+            board.move(1, 0)
+    elif key[pygame.K_LEFT] and board.can_move(-1, 0):
         player.rect.left -= 50
+        board.move(-1, 0)
     return player
 
 
@@ -177,8 +204,6 @@ while running:
         key = pygame.key.get_pressed()
         player = player_moves(key, player)
     screen.fill(pygame.Color("black"))
-    tiles_group.draw(screen)
-    player_group.draw(screen)
+    board.render(screen)
     pygame.display.flip()
-
 terminate()
