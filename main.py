@@ -12,7 +12,7 @@ MAP_COUNT = 0
 
 
 def load_level(filename):
-    filename = "data/" + filename
+    filename = os.path.join('data', filename)
     # читаем уровень, убирая символы перевода строки
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
@@ -69,7 +69,6 @@ tile_images = {
 
 all_sprites = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
-player_group = pygame.sprite.Group()
 tile_width = tile_height = 50
 
 
@@ -97,9 +96,6 @@ class AnimatedSprite(pygame.sprite.Sprite):
         return self.rect
 
 
-player_image = load_image("mar.png")
-
-
 class Board:
     def __init__(self, width, height, player_pos, board):
         self.width = width
@@ -107,8 +103,11 @@ class Board:
         self.board = board
         self.left = 0
         self.top = 0
-        self.cell_size = 50
+        self.xsize = len(board[0])
+        self.ysize = len(board)
+        self.cell_size = tile_width
         self.player_pos = player_pos
+        self.player = load_image("mar.png")
 
     def set_view(self, left, top, cell_size):
         self.left = left
@@ -117,7 +116,8 @@ class Board:
 
     def render(self, screen):
         tiles_group.draw(screen)
-        player_group.draw(screen)
+        x, y = self.player_pos[0] * self.cell_size + 15, self.player_pos[1] * self.cell_size + 5
+        screen.blit(self.player, [x, y])
 
     def can_move(self, delta_x, delta_y):
         y, x = self.player_pos[1] + delta_y, self.player_pos[0] + delta_x
@@ -138,14 +138,6 @@ class Tile(pygame.sprite.Sprite):
         self.can_move = can_move
 
 
-class Player(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y):
-        super().__init__(player_group, all_sprites)
-        self.image = player_image
-        self.rect = self.image.get_rect().move(
-            tile_width * pos_x + 15, tile_height * pos_y + 5)
-
-
 def generate_level(level):
     new_player, x, y, board = None, None, None, []
     player_pos = [0, 0]
@@ -158,56 +150,43 @@ def generate_level(level):
                 a.append(Tile('wall', x, y, False))
             elif level[y][x] == '@':
                 a.append(Tile('empty', x, y))
-                new_player = Player(x, y)
                 player_pos = [x, y]
         board.append(a)
     # вернем игрока, а также размер поля в клетках
-    return new_player, x, y, Board(WIDTH, HEIGHT, player_pos, board)
+    return x, y, Board(WIDTH, HEIGHT, player_pos, board)
 
 
-player, level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
 start_screen()
 
 
-def player_moves(key, player):
+def player_moves(key):
     global board, MAP_COUNT
     if key[pygame.K_DOWN] and board.can_move(0, 1):
-        player.rect.top += 50
         board.move(0, 1)
     elif key[pygame.K_UP] and board.can_move(0, -1):
-        player.rect.top -= 50
         board.move(0, -1)
     elif key[pygame.K_RIGHT] and board.can_move(1, 0):
-        if player.rect.left + 50 > WIDTH:
-            player_group.empty()
+        if board.player_pos[0] + 1 >= board.xsize:
             MAP_COUNT += 1
-            player, level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+            level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
         else:
-            player.rect.left += 50
             board.move(1, 0)
     elif key[pygame.K_LEFT] and board.can_move(-1, 0):
-        if player.rect.left - 50 < 0:
+        if board.player_pos[0] <= 0:
             MAP_COUNT -= 1
-            player_group.empty()
-            player, level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+            level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
         else:
-            player.rect.left -= 50
             board.move(-1, 0)
-    return player
 
 
-'''
-player = pygame.sprite.Sprite(all_sprites)
-player.image = player_image
-player.rect = player.image.get_rect()
-'''
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         key = pygame.key.get_pressed()
-        player = player_moves(key, player)
+        player_moves(key)
     screen.fill(pygame.Color("black"))
     board.render(screen)
     pygame.display.flip()
