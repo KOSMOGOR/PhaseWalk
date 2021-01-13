@@ -1,7 +1,6 @@
 import pygame
 import sys
 import os
-PATH = os.path.join('simester_3', 'PhaseWalk', 'data')
 
 pygame.init()
 pygame.key.set_repeat(200, 70)
@@ -9,10 +8,11 @@ FPS = 50
 size = WIDTH, HEIGHT = 600, 400
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
+MAP_COUNT = 0
 
 
 def load_level(filename):
-    filename = os.path.join(PATH, filename)
+    filename = "data/" + filename
     # читаем уровень, убирая символы перевода строки
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
@@ -45,12 +45,13 @@ def start_screen():
 
 
 def load_image(name, color_key=None):
-    fullname = os.path.join(PATH, name)
+    fullname = os.path.join('data', name)
     try:
         image = pygame.image.load(fullname)
     except pygame.error as message:
         print('Cannot load image:', name)
         raise SystemExit(message)
+    #    image = image.convert_alpha()
 
     if color_key is not None:
         if color_key == -1:
@@ -120,7 +121,7 @@ class Board:
 
     def can_move(self, delta_x, delta_y):
         y, x = self.player_pos[1] + delta_y, self.player_pos[0] + delta_x
-        if self.board[y][x].can_move:
+        if x >= WIDTH // self.cell_size or y >= HEIGHT // self.cell_size or self.board[y][x].can_move:
             return True
         return False
 
@@ -164,14 +165,12 @@ def generate_level(level):
     return new_player, x, y, Board(WIDTH, HEIGHT, player_pos, board)
 
 
-player = None
-
-player, level_x, level_y, board = generate_level(load_level('map.txt'))
+player, level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
 start_screen()
 
 
 def player_moves(key, player):
-    global board
+    global board, MAP_COUNT
     if key[pygame.K_DOWN] and board.can_move(0, 1):
         player.rect.top += 50
         board.move(0, 1)
@@ -181,13 +180,19 @@ def player_moves(key, player):
     elif key[pygame.K_RIGHT] and board.can_move(1, 0):
         if player.rect.left + 50 > WIDTH:
             player_group.empty()
-            player, level_x, level_y, board = generate_level(load_level('map1.txt'))
+            MAP_COUNT += 1
+            player, level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
         else:
             player.rect.left += 50
             board.move(1, 0)
     elif key[pygame.K_LEFT] and board.can_move(-1, 0):
-        player.rect.left -= 50
-        board.move(-1, 0)
+        if player.rect.left - 50 < 0:
+            MAP_COUNT -= 1
+            player_group.empty()
+            player, level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+        else:
+            player.rect.left -= 50
+            board.move(-1, 0)
     return player
 
 
