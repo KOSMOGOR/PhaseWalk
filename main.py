@@ -69,7 +69,9 @@ tile_images = {
 
 all_sprites = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
+phase_group = pygame.sprite.Group()
 tile_width = tile_height = 50
+phase_staff = None
 
 
 class AnimatedSprite(pygame.sprite.Sprite):
@@ -116,6 +118,7 @@ class Board:
 
     def render(self, screen):
         tiles_group.draw(screen)
+        phase_group.draw(screen)
         x, y = self.player_pos[0] * self.cell_size + 15, self.player_pos[1] * self.cell_size + 5
         screen.blit(self.player, [x, y])
 
@@ -136,9 +139,27 @@ class Tile(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.can_move = can_move
+        self.can_pick_up = False
+
+
+class Phase_staff(pygame.sprite.Sprite):
+    def __init__(self, img, pos_x, pos_y):
+        super().__init__(phase_group, all_sprites)
+        self.pos_y = pos_y
+        self.image = img
+        self.pos_x = pos_x
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x, tile_height * pos_y)
+        self.can_pick_up = True
+
+    def win_rule(self, board):
+        if board.player_pos[0] == self.pos_x and board.player_pos[1] == self.pos_y:
+            phase_group.empty()
+            print('You win!')
 
 
 def generate_level(level):
+    global phase_staff
     new_player, x, y, board = None, None, None, []
     player_pos = [0, 0]
     for y in range(len(level)):
@@ -151,6 +172,9 @@ def generate_level(level):
             elif level[y][x] == '@':
                 a.append(Tile('empty', x, y))
                 player_pos = [x, y]
+            elif level[y][x] == '*':
+                a.append(Tile('empty', x, y))
+                phase_staff = Phase_staff(load_image('phase_art.png'), x, y)
         board.append(a)
     # вернем игрока, а также размер поля в клетках
     return x, y, Board(WIDTH, HEIGHT, player_pos, board)
@@ -161,23 +185,33 @@ start_screen()
 
 
 def player_moves(key):
-    global board, MAP_COUNT
+    global board, MAP_COUNT, phase_staff
     if key[pygame.K_DOWN] and board.can_move(0, 1):
         board.move(0, 1)
+        if phase_staff:
+            phase_staff.win_rule(board)
     elif key[pygame.K_UP] and board.can_move(0, -1):
         board.move(0, -1)
+        if phase_staff:
+            phase_staff.win_rule(board)
     elif key[pygame.K_RIGHT] and board.can_move(1, 0):
         if board.player_pos[0] + 1 >= board.xsize:
             MAP_COUNT += 1
             level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
         else:
             board.move(1, 0)
+            if phase_staff:
+                phase_staff.win_rule(board)
     elif key[pygame.K_LEFT] and board.can_move(-1, 0):
         if board.player_pos[0] <= 0:
             MAP_COUNT -= 1
             level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+            phase_group.empty()
+            phase_staff = None
         else:
             board.move(-1, 0)
+            if phase_staff:
+                phase_staff.win_rule(board)
 
 
 running = True
