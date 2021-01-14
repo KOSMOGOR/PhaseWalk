@@ -4,7 +4,7 @@ import os
 
 pygame.init()
 pygame.key.set_repeat(200, 70)
-FPS = 50
+FPS = 12
 size = WIDTH, HEIGHT = 600, 400
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
@@ -67,16 +67,17 @@ tile_images = {
     'empty': load_image('grass.png')
 }
 
-all_sprites = pygame.sprite.Group()
+player_group = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
 phase_group = pygame.sprite.Group()
+enemy_group = pygame.sprite.Group()
 tile_width = tile_height = 50
 phase_staff = None
 
 
 class AnimatedSprite(pygame.sprite.Sprite):
-    def __init__(self, sheet, columns, rows, x, y):
-        super().__init__(all_sprites)
+    def __init__(self, sheet, columns, rows, x, y, type1):
+        super().__init__(enemy_group if type1 == 'enemy' else player_group)
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
@@ -94,9 +95,6 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.cur_frame = (self.cur_frame + 1) % len(self.frames)
         self.image = self.frames[self.cur_frame]
 
-    def get_rect(self):
-        return self.rect
-
 
 class Board:
     def __init__(self, width, height, player_pos, board):
@@ -108,8 +106,8 @@ class Board:
         self.xsize = len(board[0])
         self.ysize = len(board)
         self.cell_size = tile_width
-        self.player_pos = player_pos
-        self.player = load_image("mar.png")
+        self.x, self.y = player_pos[0], player_pos[1]
+        self.player = AnimatedSprite(pygame.transform.scale(load_image('hero_w.png'), [600, 50]), 12, 1, self.x * 50, self.y * 50, 'player')
 
     def set_view(self, left, top, cell_size):
         self.left = left
@@ -119,22 +117,24 @@ class Board:
     def render(self, screen):
         tiles_group.draw(screen)
         phase_group.draw(screen)
-        x, y = self.player_pos[0] * self.cell_size + 15, self.player_pos[1] * self.cell_size + 5
-        screen.blit(self.player, [x, y])
+        x, y = self.x * self.cell_size, self.y * self.cell_size
+        self.player.rect.topleft = [x, y]
+        player_group.draw(screen)
+        self.player.update()
 
     def can_move(self, delta_x, delta_y):
-        y, x = self.player_pos[1] + delta_y, self.player_pos[0] + delta_x
+        y, x = self.y + delta_y, self.x + delta_x
         if x >= WIDTH // self.cell_size or y >= HEIGHT // self.cell_size or self.board[y][x].can_move:
             return True
         return False
 
     def move(self, delta_x, delta_y):
-        self.player_pos = [self.player_pos[0] + delta_x, self.player_pos[1] + delta_y]
+        self.x, self.y = self.x + delta_x, self.y + delta_y
 
 
 class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y, can_move=True):
-        super().__init__(tiles_group, all_sprites)
+        super().__init__(tiles_group)
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
@@ -144,7 +144,7 @@ class Tile(pygame.sprite.Sprite):
 
 class Phase_staff(pygame.sprite.Sprite):
     def __init__(self, img, pos_x, pos_y):
-        super().__init__(phase_group, all_sprites)
+        super().__init__(phase_group)
         self.pos_y = pos_y
         self.image = img
         self.pos_x = pos_x
@@ -153,13 +153,13 @@ class Phase_staff(pygame.sprite.Sprite):
         self.can_pick_up = True
 
     def win_rule(self, board):
-        if board.player_pos[0] == self.pos_x and board.player_pos[1] == self.pos_y:
+        if board.x == self.pos_x and board.y == self.pos_y:
             phase_group.empty()
             print('You win!')
 
 
 def generate_level(level):
-    global phase_staff
+    global phase_staff, enemy
     new_player, x, y, board = None, None, None, []
     player_pos = [0, 0]
     for y in range(len(level)):
@@ -175,6 +175,9 @@ def generate_level(level):
             elif level[y][x] == '*':
                 a.append(Tile('empty', x, y))
                 phase_staff = Phase_staff(load_image('phase_art.png'), x, y)
+            elif level[y][x] == '1':
+                a.append(Tile('empty', x, y))
+                enemy = AnimatedSprite(pygame.transform.scale(load_image('phase_enemy_1_w.png'), [600, 50]), 12, 1, x * 50, y * 50, 'enemy')
         board.append(a)
     # вернем игрока, а также размер поля в клетках
     return x, y, Board(WIDTH, HEIGHT, player_pos, board)
@@ -195,25 +198,30 @@ def player_moves(key):
         if phase_staff:
             phase_staff.win_rule(board)
     elif key[pygame.K_RIGHT] and board.can_move(1, 0):
-        if board.player_pos[0] + 1 >= board.xsize:
+        if board.x + 1 >= board.xsize:
             MAP_COUNT += 1
+            enemy_group.empty()
+            player_group.empty()
             level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
         else:
             board.move(1, 0)
             if phase_staff:
                 phase_staff.win_rule(board)
     elif key[pygame.K_LEFT] and board.can_move(-1, 0):
-        if board.player_pos[0] <= 0:
+        if board.x <= 0:
             MAP_COUNT -= 1
-            level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+            enemy_group.empty()
+            player_group.empty()
             phase_group.empty()
             phase_staff = None
+            level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
         else:
             board.move(-1, 0)
             if phase_staff:
                 phase_staff.win_rule(board)
 
 
+clock = pygame.time.Clock()
 running = True
 while running:
     for event in pygame.event.get():
@@ -223,5 +231,8 @@ while running:
         player_moves(key)
     screen.fill(pygame.Color("black"))
     board.render(screen)
+    enemy.update()
+    enemy_group.draw(screen)
+    clock.tick(FPS)
     pygame.display.flip()
 terminate()
