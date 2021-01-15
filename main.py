@@ -107,7 +107,8 @@ class Board:
         self.ysize = len(board)
         self.cell_size = tile_width
         self.x, self.y = player_pos[0], player_pos[1]
-        self.player = AnimatedSprite(pygame.transform.scale(load_image('hero_w.png'), [600, 50]), 12, 1, self.x * 50, self.y * 50, 'player')
+        self.player = AnimatedSprite(pygame.transform.scale(load_image('hero_w.png'), [600, 50]), 12, 1, self.x * 50,
+                                     self.y * 50, 'player')
 
     def set_view(self, left, top, cell_size):
         self.left = left
@@ -221,13 +222,14 @@ def player_moves(key):
                 phase_staff.win_rule(board)
 
 
-clock = pygame.time.Clock()
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         key = pygame.key.get_pressed()
+        if key[pygame.K_ESCAPE]:
+            running = False
         player_moves(key)
     screen.fill(pygame.Color("black"))
     board.render(screen)
