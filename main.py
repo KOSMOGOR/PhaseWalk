@@ -11,6 +11,11 @@ size = WIDTH, HEIGHT = 600, 400
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
 MAP_COUNT = 0
+font1 = pygame.font.Font('data\\18036.otf', 30)
+songs = ['Nickelback - Burn it to the ground.mp3', 'Nickelback - Home.mp3', 'Shinedown - Devil.mp3',
+         'Phaserland - Resemblance in Machine.mp3', 'Panda Eyes & Teminite - Highscore.mp3',
+         "You reposted in everyone's neighorhood.mp3"]
+song_index = 0
 
 
 def load_level(filename):
@@ -183,7 +188,8 @@ def generate_level(level):
                 phase_staff = Phase_staff(load_image('phase_art.png'), x, y)
             elif level[y][x] == '1':
                 a.append(Tile('empty', x, y))
-                enemy = AnimatedSprite(pygame.transform.scale(load_image('phase_enemy_1_w.png'), [600, 50]), 12, 1, x * 50, y * 50, 'enemy')
+                enemy = AnimatedSprite(pygame.transform.scale(load_image('phase_enemy_1_w.png'),
+                                                              [600, 50]), 12, 1, x * 50, y * 50, 'enemy')
         board.append(a)
     # вернем игрока, а также размер поля в клетках
     return x, y, Board(WIDTH, HEIGHT, player_pos, board)
@@ -227,11 +233,14 @@ def player_moves(key):
                 phase_staff.win_rule(board)
 
 
+is_playing = False
 onpause = False
+spacedown = False
 pausedown = False
 running = True
 while running:
     for event in pygame.event.get():
+        key = pygame.key.get_pressed()
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
@@ -240,10 +249,27 @@ while running:
             elif event.key == pygame.K_p and not pausedown:
                 onpause = not onpause
                 pausedown = True
+            if key[pygame.K_UP] and song_index + 1 < len(songs) and onpause:
+                song_index += 1
+            elif key[pygame.K_DOWN] and song_index > 0 and onpause:
+                song_index -= 1
+            if key[pygame.K_SPACE] and not is_playing and not spacedown:
+                #                print('playing')
+                spacedown = True
+                pygame.mixer.music.load(f'data\\{songs[song_index]}')
+                pygame.mixer.music.play(0)
+                is_playing = True
+
+            elif key[pygame.K_SPACE] and is_playing and not spacedown:
+                #                print('stopped')
+                pygame.mixer.music.stop()
+                is_playing = False
+                spacedown = True
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_p:
                 pausedown = False
-        key = pygame.key.get_pressed()
+            if event.key == pygame.K_SPACE:
+                spacedown = False
         if not onpause:
             player_moves(key)
     screen.fill(pygame.Color("black"))
@@ -253,8 +279,11 @@ while running:
         enemy.update()
         board.player.update()
     else:
-        pygame.draw.rect(screen, 'black', [100, 100, 100, 100])
-
+        pygame.draw.rect(screen, 'black', [10, 10, 580, 90])
+        text = font1.render(songs[song_index], False, (255, 255, 225))
+        screen.blit(text, (10, 10, 580, 90))
+        pygame.display.update()
+    #    print(is_playing, spacedown)
     clock.tick(FPS)
     pygame.display.flip()
 terminate()
