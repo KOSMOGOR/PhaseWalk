@@ -2,9 +2,11 @@ import pygame
 import sys
 import os
 
+from pygame.constants import KEYDOWN
+
 pygame.init()
 pygame.key.set_repeat(200, 70)
-FPS = 12
+FPS = 48
 size = WIDTH, HEIGHT = 600, 400
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
@@ -83,6 +85,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x, y)
+        self.update_count = 4
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
@@ -92,8 +95,11 @@ class AnimatedSprite(pygame.sprite.Sprite):
                 self.frames.append(sheet.subsurface(pygame.Rect(frame_location, self.rect.size)))
 
     def update(self):
-        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-        self.image = self.frames[self.cur_frame]
+        self.update_count -= 1
+        if self.update_count == 0:
+            self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+            self.image = self.frames[self.cur_frame]
+            self.update_count = 4
 
 
 class Board:
@@ -121,7 +127,6 @@ class Board:
         x, y = self.x * self.cell_size, self.y * self.cell_size
         self.player.rect.topleft = [x, y]
         player_group.draw(screen)
-        self.player.update()
 
     def can_move(self, delta_x, delta_y):
         y, x = self.y + delta_y, self.x + delta_x
@@ -222,19 +227,34 @@ def player_moves(key):
                 phase_staff.win_rule(board)
 
 
+onpause = False
+pausedown = False
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                running = False
+            elif event.key == pygame.K_p and not pausedown:
+                onpause = not onpause
+                pausedown = True
+        elif event.type == pygame.KEYUP:
+            if event.key == pygame.K_p:
+                pausedown = False
         key = pygame.key.get_pressed()
-        if key[pygame.K_ESCAPE]:
-            running = False
-        player_moves(key)
+        if not onpause:
+            player_moves(key)
     screen.fill(pygame.Color("black"))
     board.render(screen)
-    enemy.update()
     enemy_group.draw(screen)
+    if not onpause:
+        enemy.update()
+        board.player.update()
+    else:
+        pygame.draw.rect(screen, 'black', [100, 100, 100, 100])
+
     clock.tick(FPS)
     pygame.display.flip()
 terminate()
