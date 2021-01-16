@@ -60,6 +60,8 @@ needrender = None
 nowkey = None
 lastkey = None
 text = 'waiting'
+
+
 def start_qte():
     global running
     buttons = [
@@ -211,7 +213,8 @@ class Board:
         y, x = self.y + delta_y, self.x + delta_x
         if [x, y] in [x[1] for x in self.enemies]:
             return 'die'
-        elif x >= WIDTH // self.cell_size or x < 0 or y >= HEIGHT // self.cell_size or y < 0 or self.board[y][x].can_move:
+        elif x >= WIDTH // self.cell_size or x < 0 or y >= HEIGHT // self.cell_size or y < 0 or\
+                self.board[y][x].can_move:
             return True
         return False
 
@@ -370,31 +373,35 @@ while running:
                 running = False
             elif event.key == pygame.K_p and not pausedown:
                 onpause = not onpause
+#                print(onpause)
                 pausedown = True
             elif event.key == pygame.K_q:
                 dead = not start_qte()
-            elif onpause:
-                if key[pygame.K_UP] and song_index + 1 < len(songs):
-                    song_index += 1
-                elif key[pygame.K_DOWN] and song_index > 0:
-                    song_index -= 1
             elif key[pygame.K_SPACE] and not spacedown and onpause:
                 if not is_playing:
-                    # print('playing')
+                    print('playing')
                     spacedown = True
                     pygame.mixer.music.load(f'data\\{songs[song_index]}')
                     pygame.mixer.music.play(0)
                     is_playing = True
                 else:
-                    # print('stopped')
+                    print('stopped')
                     pygame.mixer.music.stop()
                     is_playing = False
                     spacedown = True
+            elif onpause:
+                if key[pygame.K_UP] and song_index + 1 < len(songs):
+                    song_index += 1
+                elif key[pygame.K_DOWN] and song_index > 0:
+                    song_index -= 1
+
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_p:
                 pausedown = False
             if event.key == pygame.K_SPACE:
                 spacedown = False
+ #               print(spacedown)
+ #               print(is_playing)
     screen.fill('black')
     board.render(screen)
     enemy_group.draw(screen)
