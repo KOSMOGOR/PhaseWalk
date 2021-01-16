@@ -1,8 +1,8 @@
 import pygame
 import sys
 import os
+import random
 
-from pygame.constants import KEYDOWN
 
 pygame.init()
 pygame.key.set_repeat(200, 70)
@@ -16,6 +16,7 @@ songs = ['Nickelback - Burn it to the ground.mp3', 'Nickelback - Home.mp3', 'Shi
          'Phaserland - Resemblance in Machine.mp3', 'Panda Eyes & Teminite - Highscore.mp3',
          "You reposted in everyone's neighorhood.mp3"]
 song_index = 0
+gravity = 0.25
 
 
 def load_level(filename):
@@ -78,6 +79,7 @@ player_group = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
 phase_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
+effect_group = pygame.sprite.Group()
 tile_width = tile_height = 50
 phase_staff = None
 
@@ -129,6 +131,7 @@ class Board:
     def render(self, screen):
         tiles_group.draw(screen)
         phase_group.draw(screen)
+        effect_group.draw(screen)
         x, y = self.x * self.cell_size, self.y * self.cell_size
         self.player.rect.topleft = [x, y]
         player_group.draw(screen)
@@ -165,8 +168,9 @@ class Phase_staff(pygame.sprite.Sprite):
 
     def win_rule(self, board):
         if board.x == self.pos_x and board.y == self.pos_y:
+            create_particles((board.x * board.cell_size, board.y * board.cell_size))
             phase_group.empty()
-            print('You win!')
+            self.pos_x = self.pos_y = 0
 
 
 def generate_level(level):
@@ -233,6 +237,49 @@ def player_moves(key):
                 phase_staff.win_rule(board)
 
 
+screen_rect = (0, 0, WIDTH, HEIGHT)
+
+
+class Particle(pygame.sprite.Sprite):
+    # сгенерируем частицы разного размера
+    fire = [load_image("star.png")]
+    for scale in (5, 10, 20):
+        fire.append(pygame.transform.scale(fire[0], (scale, scale)))
+
+    def __init__(self, pos, dx, dy):
+        super().__init__(effect_group)
+        self.image = random.choice(self.fire)
+        self.rect = self.image.get_rect()
+
+        # у каждой частицы своя скорость - это вектор
+        self.velocity = [dx, dy]
+        # и свои координаты
+        self.rect.x, self.rect.y = pos
+
+        # гравитация будет одинаковой
+        self.gravity = gravity
+
+    def update(self):
+        # применяем гравитационный эффект:
+        # движение с ускорением под действием гравитации
+        self.velocity[1] += self.gravity
+        # перемещаем частицу
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
+        # убиваем, если частица ушла за экран
+        if not self.rect.colliderect(screen_rect):
+            self.kill()
+
+
+def create_particles(position):
+    # количество создаваемых частиц
+    particle_count = 50
+    # возможные скорости
+    numbers = range(-6, 6)
+    for _ in range(particle_count):
+        Particle(position, random.choice(numbers), random.choice(numbers))
+
+
 is_playing = False
 onpause = False
 spacedown = False
@@ -253,14 +300,14 @@ while running:
                 song_index += 1
             elif key[pygame.K_DOWN] and song_index > 0 and onpause:
                 song_index -= 1
-            if key[pygame.K_SPACE] and not is_playing and not spacedown:
+            if key[pygame.K_SPACE] and not is_playing and not spacedown and onpause:
                 #                print('playing')
                 spacedown = True
                 pygame.mixer.music.load(f'data\\{songs[song_index]}')
                 pygame.mixer.music.play(0)
                 is_playing = True
 
-            elif key[pygame.K_SPACE] and is_playing and not spacedown:
+            elif key[pygame.K_SPACE] and is_playing and not spacedown and onpause:
                 #                print('stopped')
                 pygame.mixer.music.stop()
                 is_playing = False
@@ -278,6 +325,7 @@ while running:
     if not onpause:
         enemy.update()
         board.player.update()
+        effect_group.update()
     else:
         pygame.draw.rect(screen, 'black', [10, 10, 580, 90])
         text = font1.render(songs[song_index], False, (255, 255, 225))
