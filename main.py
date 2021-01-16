@@ -1,7 +1,7 @@
 import pygame
 import sys
 import os
-import random
+from random import choice, randint
 
 
 pygame.init()
@@ -11,7 +11,8 @@ size = WIDTH, HEIGHT = 600, 400
 screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
 MAP_COUNT = 0
-font1 = pygame.font.Font('data\\18036.otf', 30)
+font30 = pygame.font.Font('data\\18036.otf', 30)
+font60 = pygame.font.Font('data\\18036.otf', 60)
 songs = ['Nickelback - Burn it to the ground.mp3', 'Nickelback - Home.mp3', 'Shinedown - Devil.mp3',
          'Phaserland - Resemblance in Machine.mp3', 'Panda Eyes & Teminite - Highscore.mp3',
          "You reposted in everyone's neighorhood.mp3"]
@@ -48,6 +49,70 @@ def start_screen():
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
                 return  # начинаем игру
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+beforereturn = 0
+buttonsremain = 0
+ticks = FPS * 4
+needrender = None
+nowkey = None
+lastkey = None
+text = 'waiting'
+def start_qte():
+    global running
+    buttons = [
+        [pygame.transform.scale(load_image('W.png'), (100, 100)), pygame.K_w],
+        [pygame.transform.scale(load_image('A.png'), (100, 100)), pygame.K_a],
+        [pygame.transform.scale(load_image('S.png'), (100, 100)), pygame.K_s],
+        [pygame.transform.scale(load_image('D.png'), (100, 100)), pygame.K_d],
+        [pygame.transform.scale(load_image('M.png'), (100, 100)), pygame.K_m],
+        [pygame.transform.scale(load_image('L.png'), (100, 100)), pygame.K_l],
+    ]
+
+    def get_new_button():
+        global needrender, nowkey, lastkey
+        key = choice(list(filter(lambda x: x[1] != nowkey, buttons)))
+        needrender = [key[0], [250, 150]]# [randint(0, WIDTH - 100), randint(50, HEIGHT - 100)]]
+        lastkey, nowkey = nowkey, key[1]
+
+    def reset():
+        global buttonsremain, needrender, nowkey, lastkey, beforereturn
+        buttonsremain = 0
+        needrender = None
+        nowkey = None
+        lastkey = None
+        beforereturn = FPS * 2
+
+    buttonsremain = 4
+    ticks = FPS * 4
+    beforereturn = 0
+    get_new_button()
+    while True:
+        pygame.draw.rect(screen, 'black', [200, 100, 200, 200])
+        for event in pygame.event.get():
+            key = pygame.key.get_pressed()
+            if event.type == pygame.QUIT or key[pygame.K_ESCAPE]:
+                running = False
+            if nowkey and key[nowkey]:
+                buttonsremain -= 1
+                if buttonsremain > 0:
+                    get_new_button()
+                else:
+                    return True
+            elif nowkey and any(key):
+                if not lastkey or (lastkey and not key[lastkey]):
+                    text = 'bad'
+                    return False
+        if beforereturn > 0:
+            beforereturn -= 1
+        elif buttonsremain > 0:
+            ticks -= 1
+        if ticks == 0:
+            return False
+        if needrender:
+            screen.blit(needrender[0], needrender[1])
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -138,7 +203,7 @@ class Board:
 
     def can_move(self, delta_x, delta_y):
         y, x = self.y + delta_y, self.x + delta_x
-        if x >= WIDTH // self.cell_size or y >= HEIGHT // self.cell_size or self.board[y][x].can_move:
+        if x >= WIDTH // self.cell_size or x < 0 or y >= HEIGHT // self.cell_size or y < 0 or self.board[y][x].can_move:
             return True
         return False
 
@@ -205,15 +270,15 @@ start_screen()
 
 def player_moves(key):
     global board, MAP_COUNT, phase_staff
-    if key[pygame.K_DOWN] and board.can_move(0, 1):
+    if key[pygame.K_s] and board.can_move(0, 1):
         board.move(0, 1)
         if phase_staff:
             phase_staff.win_rule(board)
-    elif key[pygame.K_UP] and board.can_move(0, -1):
+    elif key[pygame.K_w] and board.can_move(0, -1):
         board.move(0, -1)
         if phase_staff:
             phase_staff.win_rule(board)
-    elif key[pygame.K_RIGHT] and board.can_move(1, 0):
+    elif key[pygame.K_d] and board.can_move(1, 0):
         if board.x + 1 >= board.xsize:
             MAP_COUNT += 1
             enemy_group.empty()
@@ -223,7 +288,7 @@ def player_moves(key):
             board.move(1, 0)
             if phase_staff:
                 phase_staff.win_rule(board)
-    elif key[pygame.K_LEFT] and board.can_move(-1, 0):
+    elif key[pygame.K_a] and board.can_move(-1, 0):
         if board.x <= 0:
             MAP_COUNT -= 1
             enemy_group.empty()
@@ -248,7 +313,7 @@ class Particle(pygame.sprite.Sprite):
 
     def __init__(self, pos, dx, dy):
         super().__init__(effect_group)
-        self.image = random.choice(self.fire)
+        self.image = choice(self.fire)
         self.rect = self.image.get_rect()
 
         # у каждой частицы своя скорость - это вектор
@@ -277,7 +342,7 @@ def create_particles(position):
     # возможные скорости
     numbers = range(-6, 6)
     for _ in range(particle_count):
-        Particle(position, random.choice(numbers), random.choice(numbers))
+        Particle(position, choice(numbers), choice(numbers))
 
 
 is_playing = False
@@ -285,33 +350,37 @@ onpause = False
 spacedown = False
 pausedown = False
 running = True
+dead = False
 while running:
     for event in pygame.event.get():
         key = pygame.key.get_pressed()
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
+            if event.key == pygame.K_ESCAPE or dead:
                 running = False
             elif event.key == pygame.K_p and not pausedown:
                 onpause = not onpause
                 pausedown = True
-            if key[pygame.K_UP] and song_index + 1 < len(songs) and onpause:
-                song_index += 1
-            elif key[pygame.K_DOWN] and song_index > 0 and onpause:
-                song_index -= 1
-            if key[pygame.K_SPACE] and not is_playing and not spacedown and onpause:
-                #                print('playing')
-                spacedown = True
-                pygame.mixer.music.load(f'data\\{songs[song_index]}')
-                pygame.mixer.music.play(0)
-                is_playing = True
-
-            elif key[pygame.K_SPACE] and is_playing and not spacedown and onpause:
-                #                print('stopped')
-                pygame.mixer.music.stop()
-                is_playing = False
-                spacedown = True
+            elif event.key == pygame.K_q:
+                dead = not start_qte()
+            elif onpause:
+                if key[pygame.K_UP] and song_index + 1 < len(songs):
+                    song_index += 1
+                elif key[pygame.K_DOWN] and song_index > 0:
+                    song_index -= 1
+            elif key[pygame.K_SPACE] and not spacedown and onpause:
+                if not is_playing:
+                    # print('playing')
+                    spacedown = True
+                    pygame.mixer.music.load(f'data\\{songs[song_index]}')
+                    pygame.mixer.music.play(0)
+                    is_playing = True
+                else:
+                    # print('stopped')
+                    pygame.mixer.music.stop()
+                    is_playing = False
+                    spacedown = True
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_p:
                 pausedown = False
@@ -319,19 +388,22 @@ while running:
                 spacedown = False
         if not onpause:
             player_moves(key)
-    screen.fill(pygame.Color("black"))
+    screen.fill('black')
     board.render(screen)
     enemy_group.draw(screen)
-    if not onpause:
+    if dead:
+        text = font60.render('Вы умерли', False, (255, 255, 255))
+        screen.blit(text, [170, 150, 0, 0])
+    elif not onpause:
         enemy.update()
         board.player.update()
         effect_group.update()
     else:
         pygame.draw.rect(screen, 'black', [10, 10, 580, 90])
-        text = font1.render(songs[song_index], False, (255, 255, 225))
+        text = font30.render(songs[song_index], False, (255, 255, 225))
         screen.blit(text, (10, 10, 580, 90))
         pygame.display.update()
-    #    print(is_playing, spacedown)
+        # print(is_playing, spacedown)
     clock.tick(FPS)
     pygame.display.flip()
 terminate()
