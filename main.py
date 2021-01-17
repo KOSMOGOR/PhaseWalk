@@ -3,6 +3,8 @@ import sys
 import os
 from random import choice, randint
 
+from pygame.sprite import collide_circle
+
 pygame.init()
 pygame.key.set_repeat(200, 70)
 FPS = 48
@@ -61,8 +63,8 @@ lastkey = None
 text = 'waiting'
 
 
-def start_qte():
-    global running
+def start_qte(enemy):
+    global running, board
     buttons = [
         [pygame.transform.scale(load_image('W.png'), (100, 100)), pygame.K_w],
         [pygame.transform.scale(load_image('A.png'), (100, 100)), pygame.K_a],
@@ -77,14 +79,6 @@ def start_qte():
         key = choice(list(filter(lambda x: x[1] != nowkey, buttons)))
         needrender = [key[0], [250, 150]]  # [randint(0, WIDTH - 100), randint(50, HEIGHT - 100)]]
         lastkey, nowkey = nowkey, key[1]
-
-    def reset():
-        global buttonsremain, needrender, nowkey, lastkey, beforereturn
-        buttonsremain = 0
-        needrender = None
-        nowkey = None
-        lastkey = None
-        beforereturn = FPS * 2
 
     buttonsremain = 4
     ticks = FPS * 4
@@ -101,6 +95,8 @@ def start_qte():
                 if buttonsremain > 0:
                     get_new_button()
                 else:
+                    enemy[0].kill()
+                    board.enemies.pop(board.enemies.index(enemy))
                     return True
             elif nowkey and any(key):
                 if not lastkey or (lastkey and not key[lastkey]):
@@ -159,6 +155,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x, y)
         self.update_count = 4
+        self.radius = 1
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
@@ -173,6 +170,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.cur_frame = (self.cur_frame + 1) % len(self.frames)
             self.image = self.frames[self.cur_frame]
             self.update_count = 4
+        
 
 
 class Board:
@@ -189,6 +187,7 @@ class Board:
         self.player = AnimatedSprite(pygame.transform.scale(load_image('hero_w.png'), [600, 50]), 12, 1, self.x * 50,
                                      self.y * 50, 'player')
         self.enemies = enemies
+        self.combat_circle = Combat_circle(self.x * self.cell_size, self.y * self.cell_size)
 
     def set_view(self, left, top, cell_size):
         self.left = left
@@ -202,11 +201,13 @@ class Board:
         x, y = self.x * self.cell_size, self.y * self.cell_size
         self.player.rect.topleft = [x, y]
         player_group.draw(screen)
+        circle_group.draw(screen)
 
     def update(self):
         self.player.update()
         for i in self.enemies:
             i[0].update()
+        self.combat_circle.update(self.x * self.cell_size, self.y * self.cell_size, self.enemies)
 
     def can_move(self, delta_x, delta_y):
         y, x = self.y + delta_y, self.x + delta_x
@@ -286,6 +287,31 @@ class Phase_staff(pygame.sprite.Sprite):
             create_particles((board.x * board.cell_size, board.y * board.cell_size))
             phase_group.empty()
             self.pos_x = self.pos_y = 0
+
+
+circle_group = pygame.sprite.Group()
+class Combat_circle(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__(circle_group)
+        self.radius = 0
+        self.image = pygame.Surface((50, 50),
+                                    pygame.SRCALPHA, 32)
+        self.rect = pygame.Rect(x, y, self.radius * 2, self.radius * 2)
+
+    def update(self, x, y, enemies):
+        global dead
+        if self.radius:
+            self.radius += 3
+            if self.radius >= 150:
+                self.radius = 0
+        pygame.draw.circle(screen, pygame.Color("red"),
+                           (x + 25, y + 25), self.radius, width=2)
+        self.rect = pygame.Rect(x, y, self.radius * 2, self.radius * 2)
+        for enemy in enemies:
+            if collide_circle(self, enemy[0]):
+                dead = not start_qte(enemy)
+                if not dead:
+                    self.radius = 0
 
 
 def generate_level(level):
@@ -372,16 +398,16 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
-            if not onpause:
+            if not onpause and not dead:
                 player_moves(key)
             if event.key == pygame.K_ESCAPE:
                 running = False
             elif event.key == pygame.K_p and not pausedown:
                 onpause = not onpause
-                #                print(onpause)
+                # print(onpause)
                 pausedown = True
-            elif event.key == pygame.K_q:
-                dead = not start_qte()
+            elif event.key == pygame.K_m and not board.combat_circle.radius:
+                board.combat_circle.radius = 2
             elif key[pygame.K_SPACE] and not spacedown and onpause:
                 if not is_playing:
                     print('playing')
@@ -405,8 +431,8 @@ while running:
                 pausedown = False
             if event.key == pygame.K_SPACE:
                 spacedown = False
-    #               print(spacedown)
-    #               print(is_playing)
+                # print(spacedown)
+                # print(is_playing)
     screen.fill('black')
     board.render(screen)
     enemy_group.draw(screen)
