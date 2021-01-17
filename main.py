@@ -3,7 +3,6 @@ import sys
 import os
 from random import choice, randint
 
-
 pygame.init()
 pygame.key.set_repeat(200, 70)
 FPS = 48
@@ -76,7 +75,7 @@ def start_qte():
     def get_new_button():
         global needrender, nowkey, lastkey
         key = choice(list(filter(lambda x: x[1] != nowkey, buttons)))
-        needrender = [key[0], [250, 150]]# [randint(0, WIDTH - 100), randint(50, HEIGHT - 100)]]
+        needrender = [key[0], [250, 150]]  # [randint(0, WIDTH - 100), randint(50, HEIGHT - 100)]]
         lastkey, nowkey = nowkey, key[1]
 
     def reset():
@@ -213,7 +212,7 @@ class Board:
         y, x = self.y + delta_y, self.x + delta_x
         if [x, y] in [x[1] for x in self.enemies]:
             return 'die'
-        elif x >= WIDTH // self.cell_size or x < 0 or y >= HEIGHT // self.cell_size or y < 0 or\
+        elif x >= WIDTH // self.cell_size or x < 0 or y >= HEIGHT // self.cell_size or y < 0 or \
                 self.board[y][x].can_move:
             return True
         return False
@@ -310,7 +309,8 @@ def generate_level(level):
             elif level[y][x] == '1':
                 a.append(Tile('empty', x, y))
                 enemies.append([AnimatedSprite(pygame.transform.scale(load_image('phase_enemy_1_w.png'),
-                                                              [600, 50]), 12, 1, x * 50, y * 50, 'enemy'), [x, y]])
+                                                                      [600, 50]), 12, 1, x * 50, y * 50, 'enemy'),
+                                [x, y]])
         board.append(a)
     # вернем игрока, а также размер поля в клетках
     return x, y, Board(WIDTH, HEIGHT, player_pos, board, enemies)
@@ -349,11 +349,9 @@ def player_moves(key):
         board.move(delta_x, delta_y)
         if phase_staff:
             phase_staff.win_rule(board)
-        
 
 
 screen_rect = (0, 0, WIDTH, HEIGHT)
-
 
 is_playing = False
 onpause = False
@@ -373,7 +371,7 @@ while running:
                 running = False
             elif event.key == pygame.K_p and not pausedown:
                 onpause = not onpause
-#                print(onpause)
+                #                print(onpause)
                 pausedown = True
             elif event.key == pygame.K_q:
                 dead = not start_qte()
@@ -400,8 +398,8 @@ while running:
                 pausedown = False
             if event.key == pygame.K_SPACE:
                 spacedown = False
- #               print(spacedown)
- #               print(is_playing)
+    #               print(spacedown)
+    #               print(is_playing)
     screen.fill('black')
     board.render(screen)
     enemy_group.draw(screen)
