@@ -56,6 +56,7 @@ def start_screen():
 
 
 def level_screen(level):
+    fon = None
     if level == 1:
         fon = pygame.transform.scale(load_image('level.png'), (WIDTH, HEIGHT))
     elif level == 2:
