@@ -338,8 +338,15 @@ def player_moves(key):
         dead = True
     elif not a:
         return
-    elif delta_x and board.x <= 0 or board.x + 1 >= board.xsize:
-        MAP_COUNT += delta_x
+    elif delta_x < 0 and board.x <= 0:
+        MAP_COUNT -= 1
+        enemy_group.empty()
+        player_group.empty()
+        phase_group.empty()
+        phase_staff = None
+        level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+    elif delta_x > 0 and board.x + 1 >= board.xsize:
+        MAP_COUNT += 1
         enemy_group.empty()
         player_group.empty()
         phase_group.empty()
