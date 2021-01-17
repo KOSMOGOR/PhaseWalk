@@ -93,11 +93,13 @@ def start_qte(enemy):
         [pygame.transform.scale(load_image('L.png'), (100, 100)), pygame.K_l],
     ]
 
+
     def get_new_button():
         global needrender, nowkey, lastkey
         key = choice(list(filter(lambda x: x[1] != nowkey, buttons)))
         needrender = [key[0], [250, 150]]  # [randint(0, WIDTH - 100), randint(50, HEIGHT - 100)]]
         lastkey, nowkey = nowkey, key[1]
+
 
     buttonsremain = 4
     ticks = FPS * 4
@@ -174,7 +176,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x, y)
         self.update_count = 4
-        self.radius = 1
+        self.radius = 20
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns, sheet.get_height() // rows)
@@ -327,14 +329,15 @@ class Combat_circle(pygame.sprite.Sprite):
             self.radius += 3
             if self.radius >= 150:
                 self.radius = 0
+        self.rect = pygame.Rect(x - self.radius + 25, y - self.radius + 25, self.radius * 2, self.radius * 2)
         pygame.draw.circle(screen, pygame.Color("red"),
-                           (x + 25, y + 25), self.radius, width=2)
-        self.rect = pygame.Rect(x, y, self.radius * 2, self.radius * 2)
+                           self.rect.center, self.radius, width=2)
         for enemy in enemies:
             if collide_circle(self, enemy[0]):
                 dead = not start_qte(enemy)
                 if not dead:
                     self.radius = 0
+                break
 
 
 def generate_level(level):
@@ -358,6 +361,11 @@ def generate_level(level):
             elif level[y][x] == '1':
                 a.append(Tile('empty', x, y))
                 enemies.append([AnimatedSprite(pygame.transform.scale(load_image('phase_enemy_1_w.png'),
+                                                                      [600, 50]), 12, 1, x * 50, y * 50, 'enemy'),
+                                [x, y]])
+            elif level[y][x] == '2':
+                a.append(Tile('empty', x, y))
+                enemies.append([AnimatedSprite(pygame.transform.scale(load_image('phase_enemy_2_w.png'),
                                                                       [600, 50]), 12, 1, x * 50, y * 50, 'enemy'),
                                 [x, y]])
         board.append(a)
@@ -430,6 +438,15 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
+            if dead and key[pygame.K_r]:
+                dead = False
+                MAP_COUNT = 0
+                enemy_group.empty()
+                player_group.empty()
+                phase_group.empty()
+                phase_staff = None
+                level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}_{level}.txt'))
+                start_screen()
             if not onpause and not dead:
                 player_moves(key)
             if event.key == pygame.K_ESCAPE:
@@ -471,6 +488,8 @@ while running:
     if dead:
         text = font60.render('Вы умерли', False, (255, 255, 255))
         screen.blit(text, [170, 150, 0, 0])
+        text = font30.render('Нажмите "R" для рестарта', False, (255, 255, 255))
+        screen.blit(text, [140, 220, 0, 0])
     elif not onpause:
         board.update()
         effect_group.update()
