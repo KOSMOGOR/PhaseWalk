@@ -19,6 +19,7 @@ songs = ['Nickelback - Burn it to the ground.mp3', 'Nickelback - Home.mp3', 'Shi
          "You reposted in everyone's neighorhood.mp3"]
 song_index = 0
 gravity = 0.25
+level = 1
 
 
 def load_level(filename):
@@ -41,6 +42,24 @@ def terminate():
 
 def start_screen():
     fon = pygame.transform.scale(load_image('fon.jpg'), (WIDTH, HEIGHT))
+    screen.blit(fon, (0, 0))
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                return  # начинаем игру
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+def level_screen(level):
+    if level == 1:
+        fon = pygame.transform.scale(load_image('level.png'), (WIDTH, HEIGHT))
+    elif level == 2:
+        fon = pygame.transform.scale(load_image('end.png'), (WIDTH, HEIGHT))
     screen.blit(fon, (0, 0))
 
     while True:
@@ -172,7 +191,6 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.update_count = 4
         
 
-
 class Board:
     def __init__(self, width, height, player_pos, board, enemies):
         self.width = width
@@ -287,9 +305,14 @@ class Phase_staff(pygame.sprite.Sprite):
             create_particles((board.x * board.cell_size, board.y * board.cell_size))
             phase_group.empty()
             self.pos_x = self.pos_y = 0
+            level_screen(level)
+            return True
+        return False
 
 
 circle_group = pygame.sprite.Group()
+
+
 class Combat_circle(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__(circle_group)
@@ -342,12 +365,12 @@ def generate_level(level):
     return x, y, Board(WIDTH, HEIGHT, player_pos, board, enemies)
 
 
-level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}_{level}.txt'))
 start_screen()
 
 
 def player_moves(key):
-    global board, MAP_COUNT, phase_staff, dead
+    global board, MAP_COUNT, phase_staff, dead, level
     delta_x, delta_y = 0, 0
     if key[pygame.K_s]:
         delta_x, delta_y = 0, 1
@@ -370,18 +393,27 @@ def player_moves(key):
         player_group.empty()
         phase_group.empty()
         phase_staff = None
-        level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+        level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}_{level}.txt'))
     elif delta_x > 0 and board.x + 1 >= board.xsize:
         MAP_COUNT += 1
         enemy_group.empty()
         player_group.empty()
         phase_group.empty()
         phase_staff = None
-        level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}.txt'))
+        level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}_{level}.txt'))
     else:
         board.move(delta_x, delta_y)
         if phase_staff:
-            phase_staff.win_rule(board)
+            if phase_staff.win_rule(board):
+                if level == 2:
+                    terminate()
+                else:
+                    MAP_COUNT = 0
+                    level = 2
+                    enemy_group.empty()
+                    player_group.empty()
+                    phase_group.empty()
+                    level_x, level_y, board = generate_level(load_level(f'map{MAP_COUNT}_{level}.txt'))
 
 
 screen_rect = (0, 0, WIDTH, HEIGHT)
