@@ -6,6 +6,7 @@ from random import choice, randint
 from pygame.sprite import collide_circle
 
 pygame.init()
+pygame.display.set_caption('Phase Walk')
 pygame.key.set_repeat(200, 70)
 FPS = 48
 size = WIDTH, HEIGHT = 600, 400
